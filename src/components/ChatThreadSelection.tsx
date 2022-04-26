@@ -2,7 +2,7 @@
 // Licensed under the MIT license.
 
 import React from 'react';
-import { IStackStyles, ITheme, mergeStyles, PrimaryButton, Stack, Text, themeRulesStandardCreator } from '@fluentui/react';
+import { IStackStyles, ITheme, mergeStyles, PrimaryButton, Stack, Text } from '@fluentui/react';
 import { Thread } from '../graph-adapter/types';
 import { ChatParticipant } from '@azure/communication-chat';
 import { useTheme } from '@azure/communication-react';
@@ -53,15 +53,12 @@ const JoinButton = (props: { join: () => void }) => (
 );
 
 const ThreadInfo = (props: {threadId: string, threadParticipants: ChatParticipant[]}) => {
+  const chatWithString = `Chat with: ${props.threadParticipants.map(((participant) => participant.displayName)).join(' ')}`;
+
   return (
     <Stack>
-      <Stack.Item>
-        <Text>{'Chat with'}</Text>
-        {props.threadParticipants.map(((participant, i) => <Text key={i}>{' '+participant.displayName}</Text>))}
-      </Stack.Item>
-      <Stack.Item>
-        {props.threadId}
-      </Stack.Item>
+      <Stack.Item><Text>{chatWithString}</Text></Stack.Item>
+      <Stack.Item>{props.threadId}</Stack.Item>
     </Stack>
   )
 };

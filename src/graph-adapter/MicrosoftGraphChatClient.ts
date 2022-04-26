@@ -22,7 +22,6 @@ import { pagedAsyncIterator, latestMessageTimestamp } from './utils';
  * A MicrosoftGraph implementation of a ChatClient.
  */
 export class MicrosoftGraphChatClient implements IChatClient {
-  private realtimeNotificationsEnabled = false;
   private threadClients: MicrosoftGraphChatThreadClient[] = [];
 
   constructor(private model: Model) {}
@@ -51,27 +50,37 @@ export class MicrosoftGraphChatClient implements IChatClient {
     return pagedAsyncIterator(response);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   deleteChatThread(threadId: string): Promise<void> {
     throw new Error('MicrosoftGraphChatClient deleteChatThread Not Implemented');
   }
 
   startRealtimeNotifications(): Promise<void> {
-    this.realtimeNotificationsEnabled = true;
+    console.log('starting "real time" notifications');
+
+    setInterval(async () => {
+      for (const threadClient of this.threadClients) {
+        await threadClient.fetchNewMessages();
+      }
+    }, 1000);
+
     return Promise.resolve();
   }
 
   stopRealtimeNotifications(): Promise<void> {
-    this.realtimeNotificationsEnabled = false;
-    // TODO unsubscribe from all events.
     throw new Error('MicrosoftGraphChatClient stopRealtimeNotifications Not Implemented');
   }
 
   on(event: string, listener: any): void {
-    console.error('MicrosoftGraphChatClient on Not implemented');
+    if (event === 'chatMessageReceived') {
+      for (const threadClient of this.threadClients) {
+        threadClient.getThreadEventEmitter().on(event, listener);
+      }
+    }
+
+    console.error(`MicrosoftGraphChatClient ${event} on Not implemented`);
   }
 
-  off(): void {
-    console.error('MicrosoftGraphChatClient off Not implemented');
+  off(event: string, listener: any): void {
+    console.error(`MicrosoftGraphChatClient ${event} off Not implemented`);
   }
 }

@@ -19,9 +19,13 @@ import {
 } from '@azure/communication-chat';
 import { CommunicationIdentifier } from '@azure/communication-common';
 import { PagedAsyncIterableIterator } from '@azure/core-paging';
+import { sendMessage } from './GraphQueries';
 import { Model } from './Model';
 import { IChatThreadClient, Thread } from './types';
 import { pagedAsyncIterator } from './utils';
+import { ThreadEventEmitter } from './ThreadEventEmitter';
+import { ChatMessageReceivedEvent } from '@azure/communication-signaling';
+
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
@@ -31,8 +35,12 @@ import { pagedAsyncIterator } from './utils';
 export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
   constructor(private model: Model, public threadId: string) {}
 
+  async fetchNewMessages(): Promise<void> {
+    await this.model.fetchNewMessages(this.threadId);
+  }
+
   getProperties(): Promise<ChatThreadProperties> {
-    const thread = this.checkedGetThread();
+    const thread = this.getThread();
     return Promise.resolve({
       id: thread.id,
       topic: thread.topic,
@@ -46,12 +54,15 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     throw new Error('MicrosoftGraphChatThreadClient topic Not implemented');
   }
 
-  sendMessage(request: SendMessageRequest): Promise<SendChatMessageResult> {
-    throw new Error('MicrosoftGraphChatThreadClient sendMessage Not implemented');
+  async sendMessage(request: SendMessageRequest): Promise<SendChatMessageResult> {
+    const messageId = await sendMessage(this.threadId, request.content);
+    return {
+      id: messageId
+    };
   }
 
   getMessage(messageId: string): Promise<ChatMessage> {
-    const message = this.checkedGetThread().messages.find((m) => m.id === messageId);
+    const message = this.getThread().messages.find((m) => m.id === messageId);
     if (!message) {
       throw new Error(`No message ${messageId} in thread ${this.threadId}`);
     }
@@ -59,7 +70,7 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
   }
 
   listMessages(options?: ListMessagesOptions): PagedAsyncIterableIterator<ChatMessage> {
-    let messages = this.checkedGetThread().messages;
+    let messages = this.getThread().messages;
     if (options?.startTime) {
       const startTime = options.startTime;
       // Verify: Does startTime apply to when the message was sent, or last updated?
@@ -84,7 +95,7 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     if (options?.skip) {
       throw new Error(`options.skip not supported`);
     }
-    return pagedAsyncIterator(this.checkedGetThread().participants);
+    return pagedAsyncIterator(this.getThread().participants);
   }
 
   removeParticipant(participant: CommunicationIdentifier): Promise<void> {
@@ -105,14 +116,22 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     if (options?.skip) {
       throw new Error(`options.skip not supported`);
     }
-    return pagedAsyncIterator(this.checkedGetThread().readReceipts);
+    return pagedAsyncIterator(this.getThread().readReceipts);
   }
 
-  private checkedGetThread(): Thread {
+  private getThread(): Thread {
     const thread = this.model.getThread(this.threadId);
     if (!thread) {
       throw new Error(`Thread not found! (${this.threadId})}`);
     }
     return thread;
+  }
+
+  public getThreadEventEmitter(): ThreadEventEmitter {
+    const threadEventEmitter = this.model.getThreadEventEmitter(this.threadId);
+    if (!threadEventEmitter) {
+      throw new Error(`ThreadEventEmitter not found! (${this.threadId})}`);
+    }
+    return threadEventEmitter;
   }
 }

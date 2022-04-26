@@ -16,6 +16,8 @@ import { LeaveChatButton } from '../components/LeaveChatButton';
 interface ChatScreenProps {
   model?: Model;
   threadId: string;
+  participantId: string;
+  displayName: string;
   leaveChat?: () => void;
 }
 
@@ -25,11 +27,16 @@ export const ChatPage = (props: ChatScreenProps): JSX.Element => {
   useEffect(() => {
     (async () => {
       if (props.model) {
-        const graphAdapter = await createMicrosoftGraphChatAdapter(props.threadId, props.model);
+        const graphAdapter = await createMicrosoftGraphChatAdapter({
+          participantId: props.participantId,
+          displayName: props.displayName,
+          threadId: props.threadId,
+          model: props.model
+        });
         setAdapter(graphAdapter);
       }
     })();
-  }, [props.model, props.threadId]);
+  }, [props.displayName, props.model, props.participantId, props.threadId]);
 
   if (adapter) {
     return (

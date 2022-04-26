@@ -11,23 +11,26 @@ import { MicrosoftGraphChatClient } from './MicrosoftGraphChatClient';
 import { Model } from './Model';
 import { IChatClient } from './types';
 
-// TODO: GET FROM GRAPH AND PASS IN
-const participantId = 'TEST08381377-19e1-48df-876d-a45998dd5910';
-const displayName = 'James  Burnside';
-
-export const createMicrosoftGraphChatAdapter = async (threadId: string, model: Model): Promise<ChatAdapter> => {
-  const chatClient = new MicrosoftGraphChatClient(model) as IChatClient as ChatClient;
+export const createMicrosoftGraphChatAdapter = async (args: {
+  participantId: string,
+  displayName: string,
+  threadId: string,
+  model: Model
+}): Promise<ChatAdapter> => {
+  const chatClient = new MicrosoftGraphChatClient(args.model) as IChatClient as ChatClient;
 
   const statefulChatClient = createStatefulChatClientWithDeps(chatClient, {
-    userId: { id: participantId } as unknown as CommunicationUserIdentifier,
-    displayName: displayName,
+    userId: { id: args.participantId } as unknown as CommunicationUserIdentifier,
+    displayName: args.displayName,
     endpoint: 'FAKE_ENDPIONT',
     credential: fakeToken
   });
 
+  statefulChatClient.startRealtimeNotifications();
+
   return await createAzureCommunicationChatAdapterFromClient(
     statefulChatClient,
-    await statefulChatClient.getChatThreadClient(threadId)
+    await statefulChatClient.getChatThreadClient(args.threadId)
   );
 };
 
