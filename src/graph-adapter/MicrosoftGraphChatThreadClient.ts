@@ -24,7 +24,6 @@ import { Model } from './Model';
 import { IChatThreadClient, Thread } from './types';
 import { pagedAsyncIterator } from './utils';
 import { ThreadEventEmitter } from './ThreadEventEmitter';
-import { ChatMessageReceivedEvent } from '@azure/communication-signaling';
 
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
