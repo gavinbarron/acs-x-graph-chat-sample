@@ -22,7 +22,7 @@ export const Header = (props: {children?: React.ReactNode}): JSX.Element => {
 const quickHeaderStyles: (theme: ITheme) => IStackStyles = (theme) => ({
   root: {
     width: '100vw',
-    minHeight: '3rem',
+    height: '3rem',
     background: theme.palette.neutralLighter,
     paddingLeft: '2rem',
     paddingRight: '2rem'
