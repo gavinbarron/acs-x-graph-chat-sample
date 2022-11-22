@@ -41,9 +41,7 @@ export class Model {
     const newThreads = await Promise.all(threadPromises);
     newThreads.forEach((thread) => {
       this.threads[thread.id] = thread;
-      if (!this.threadEventEmitters[thread.id]) {
-        this.threadEventEmitters[thread.id] = new ThreadEventEmitter();
-      }
+      this.ensureThreadEventEmitterExists(thread.id);
     });
     console.log('threads: ', this.threads);
   }
@@ -72,8 +70,12 @@ export class Model {
     };
     this.threads[threadId] = newThread;
 
-    if (!this.threadEventEmitters[newThread.id]) {
-      this.threadEventEmitters[newThread.id] = new ThreadEventEmitter();
+    this.ensureThreadEventEmitterExists(newThread.id);
+  }
+
+  private ensureThreadEventEmitterExists(threadId: string) {
+    if (!this.threadEventEmitters[threadId]) {
+      this.threadEventEmitters[threadId] = new ThreadEventEmitter();
     }
   }
 
@@ -110,7 +112,8 @@ export class Model {
     return this.threads[threadId];
   }
 
-  public getThreadEventEmitter(threadId: string): ThreadEventEmitter | undefined {
+  public getThreadEventEmitter(threadId: string): ThreadEventEmitter {
+    this.ensureThreadEventEmitterExists(threadId);
     return this.threadEventEmitters[threadId];
   }
 

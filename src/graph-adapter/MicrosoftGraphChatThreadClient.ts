@@ -24,6 +24,7 @@ import { Model } from './Model';
 import { IChatThreadClient, Thread } from './types';
 import { pagedAsyncIterator } from './utils';
 import { ThreadEventEmitter } from './ThreadEventEmitter';
+import { GraphNotificationClient } from './GraphNotificationClient';
 
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -32,10 +33,10 @@ import { ThreadEventEmitter } from './ThreadEventEmitter';
  * A Microsoft Graph implementation of a ChatThreadClient.
  */
 export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
-  constructor(private model: Model, public threadId: string) {}
+  constructor(private model: Model, public threadId: string, private notificationClient: GraphNotificationClient) {}
 
   async fetchNewMessages(): Promise<void> {
-    await this.model.fetchNewMessages(this.threadId);
+    await this.notificationClient.subscribeToChatNotifications(this.threadId, this.model.getThreadEventEmitter(this.threadId));
   }
 
   getProperties(): Promise<ChatThreadProperties> {
