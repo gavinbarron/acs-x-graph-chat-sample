@@ -7,13 +7,11 @@ import { Providers } from '@microsoft/mgt-element';
 
 Providers.globalProvider = new Msal2Provider({
   clientId: '90913aff-de43-4c26-9f84-ffe0ebeedc9b', // must be the ClientID of the AAD app create for GNB
-  scopes: ['ChatMember.Read', 'ChatMember.ReadWrite', 'Chat.ReadBasic', 'Chat.Read', 'Chat.ReadWrite']
+  // request the scopes needed for direct to graph calls here
+  // The OBO scopes are requested in the NotificationClient
+  // With the separate scope request for the Notification Client there is a second consent screen
+  scopes: ['User.Read', 'ChatMember.Read', 'ChatMember.ReadWrite', 'Chat.ReadBasic', 'Chat.Read', 'Chat.ReadWrite']
 });
-
-// we need a second provider to handle the OBO calls via GNB which has a separate audience
-const gnbProvider = new Msal2Provider({
-  clientId: '90913aff-de43-4c26-9f84-ffe0ebeedc9b', // must be the ClientID of the AAD app create for GNB
-  scopes: ['cbc7d490-3e80-4df6-868a-3859a8506272/.default']});
 
 ReactDOM.render(
   <React.StrictMode>
@@ -21,5 +19,3 @@ ReactDOM.render(
   </React.StrictMode>,
   document.getElementById('root')
 );
-
-export { gnbProvider };

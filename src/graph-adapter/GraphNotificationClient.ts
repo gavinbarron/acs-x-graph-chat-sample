@@ -1,5 +1,5 @@
+import { Providers } from "@microsoft/mgt-element";
 import * as signalR from "@microsoft/signalr";
-import { gnbProvider } from "../index";
 import { graphChatMessageToACSChatMessage } from "./GraphAcsInteropUtils";
 import { ThreadEventEmitter } from "./ThreadEventEmitter";
 
@@ -15,7 +15,7 @@ const SubscriptionMethods = {
   Renew: "RenewSubscription",
 };
 
-const ReturnMethods = {
+const Return = {
   NewMessage: "newMessage",
   SubscriptionCreated: "SubscriptionCreated",
   SubscriptionRenewed: "SubscriptionRenewed",
@@ -28,7 +28,7 @@ type ChangeTypes = "created" | "updated" | "deleted";
 
 type SubscriptionDefinition = {
   resource: string;
-  expirationTime: Date; // ISO 8601 format
+  expirationTime: Date;
   changeTypes: ChangeTypes[];
   resourceData: boolean;
   signalRConnectionId: string | null;
@@ -55,6 +55,7 @@ type SubscriptionRecord = {
 
 const loadCachedSubscriptions = (): Subscription[] =>
   JSON.parse(sessionStorage.getItem("graph-subscriptions") || "[]");
+
 export class GraphNotificationClient {
   private connection?: signalR.HubConnection = undefined;
   private renewalInterval = -1;
@@ -64,42 +65,30 @@ export class GraphNotificationClient {
   private tempThreadSubscriptionEmitterMap: Record<string, ThreadEventEmitter> =
     {};
 
-  private getToken() {
-    return gnbProvider.getAccessToken();
+  private async getToken() {
+    const token = await Providers.globalProvider.getAccessToken({scopes: ['cbc7d490-3e80-4df6-868a-3859a8506272/.default']});
+    if (!token) throw new Error("Could not retrieve token for user");
+    return token;
   }
 
   async createSignalConnection() {
-    const token = await this.getToken();
-    if (!token) {
-      throw new Error("Could not get access token");
-    }
-
     const connection = this.buildConnection();
 
     connection.onreconnected(this.onReconnect);
 
-    connection.on(ReturnMethods.NewMessage, this.receiveNewMessage);
+    connection.on(Return.NewMessage, this.receiveNewMessage);
 
     connection.on("EchoMessage", console.log);
 
-    connection.on(ReturnMethods.SubscriptionCreated, this.onSubscribed);
+    connection.on(Return.SubscriptionCreated, this.onSubscribed);
 
-    connection.on(ReturnMethods.SubscriptionRenewed, this.onRenewed);
+    connection.on(Return.SubscriptionRenewed, this.onRenewed);
 
-    connection.on(
-      ReturnMethods.SubscriptionRenewalIgnored,
-      this.onRenewalIgnored
-    );
+    connection.on(Return.SubscriptionRenewalIgnored, this.onRenewalIgnored);
 
-    connection.on(
-      ReturnMethods.SubscriptionRenewalFailed,
-      this.onRenewalFailed
-    );
+    connection.on(Return.SubscriptionRenewalFailed, this.onRenewalFailed);
 
-    connection.on(
-      ReturnMethods.SubscriptionCreationFailed,
-      this.onSubscribeFailed
-    );
+    connection.on(Return.SubscriptionCreationFailed, this.onSubscribeFailed);
 
     this.connection = connection;
 
@@ -230,18 +219,20 @@ export class GraphNotificationClient {
     threadId: string,
     eventEmitter: ThreadEventEmitter
   ) {
-    if (!this.connection) {
-      console.log("No connection");
-      return;
-    }
+    if (!this.connection)
+      throw new Error("SignalR connection not initialized");
+
     const token = await this.getToken();
-    if (!token) {
-      throw new Error("Could not retrieve token for user");
+
+    const resourcePath = `chats/${threadId}/messages`;
+
+    const cachedSubscriptions = loadCachedSubscriptions();
+    if(cachedSubscriptions.some(subscription => subscription.resource === resourcePath)) {
+      console.log("Already subscribed to chat");
+      return;
     }
 
     console.log("subscribing to chat notifications for thread " + threadId);
-
-    const resourcePath = `chats/${threadId}/messages`;
 
     const expirationTime: Date = new Date(
       new Date().getTime() +
@@ -275,7 +266,7 @@ export class GraphNotificationClient {
       appSettings.timerInterval * 1000
     );
     console.log(`Start renewal timer . Id: ${this.renewalInterval}`);
-  }
+  };
 
   private renewalTimer = () => {
     const subscriptions = loadCachedSubscriptions();
@@ -297,15 +288,15 @@ export class GraphNotificationClient {
         console.log(
           `Renewing Graph subscription. RenewalCount: ${this.renewalCount}`
         );
-        //stop interval to prevent new invokes untill refresh is ready.
-        clearInterval(this.renewalCount);
+        // stop interval to prevent new invokes until refresh is ready.
+        clearInterval(this.renewalInterval);
         this.renewalInterval = -1;
         this.renewChatSubscriptions();
-        //There is one subscription that need expiration, all subscriptions will be renewed
+        // There is one subscription that need expiration, all subscriptions will be renewed
         break;
       }
     }
-  }
+  };
 
   public renewChatSubscriptions = async () => {
     if (!this.connection) {
@@ -313,9 +304,6 @@ export class GraphNotificationClient {
     }
     clearInterval(this.renewalInterval);
     const token = await this.getToken();
-    if (!token) {
-      throw new Error("Could not retrieve token for user");
-    }
 
     let expirationTime = new Date(
       new Date().getTime() +
@@ -336,7 +324,7 @@ export class GraphNotificationClient {
       console.log(`Invoked RenewSubscription ${subscription.subscriptionId}`);
     }
     await Promise.all(awaits);
-  }
+  };
 
   private removeSubscription = (subscriptionId: string) => {
     console.log("Remove Subscription from session storage.");
@@ -357,9 +345,6 @@ export class GraphNotificationClient {
     notification: Notification
   ) => {
     const token = await this.getToken();
-    if (!token) {
-      throw new Error("Could not retrieve token for user");
-    }
 
     const response = await fetch(
       appSettings.functionHost + "/api/GetChatMessageFromNotification",
