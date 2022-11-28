@@ -66,7 +66,9 @@ export class GraphNotificationClient {
     {};
 
   private async getToken() {
-    const token = await Providers.globalProvider.getAccessToken({scopes: ['cbc7d490-3e80-4df6-868a-3859a8506272/.default']});
+    const token = await Providers.globalProvider.getAccessToken({
+      scopes: ["cbc7d490-3e80-4df6-868a-3859a8506272/.default"],
+    });
     if (!token) throw new Error("Could not retrieve token for user");
     return token;
   }
@@ -104,9 +106,8 @@ export class GraphNotificationClient {
 
   private onRenewalFailed = (subscriptionId: string) => {
     console.log(`Renewal of subscription ${subscriptionId} failed.`);
-    //Something failed to renew the subscription. Might be already deleted
-    //ToDo: Consider instead of remove subscription create new one.
-    this.removeSubscription(subscriptionId);
+    //Something failed to renew the subscription. Create a new one.
+    this.recreateSubscription(subscriptionId);
   };
 
   private onSubscribeFailed = (
@@ -183,7 +184,8 @@ export class GraphNotificationClient {
     const tempSubscriptions: Subscription[] = subscriptions
       ? subscriptions.filter(
           (subscription) =>
-            subscription.subscriptionId !== subscriptionRecord.Id
+            subscription.subscriptionId !== subscriptionRecord.Id &&
+            subscription.resource !== subscriptionRecord.GraphResource
         )
       : [];
 
@@ -215,24 +217,33 @@ export class GraphNotificationClient {
     }
   }
 
-  public async subscribeToChatNotifications(
+  public subscribeToChatNotifications(
     threadId: string,
     eventEmitter: ThreadEventEmitter
   ) {
-    if (!this.connection)
-      throw new Error("SignalR connection not initialized");
+    return this.subscribeToResource(`chats/${threadId}/messages`, eventEmitter);
+  }
+
+  private async subscribeToResource(
+    resourcePath: string,
+    eventEmitter: ThreadEventEmitter
+  ) {
+    if (!this.connection) throw new Error("SignalR connection not initialized");
 
     const token = await this.getToken();
-
-    const resourcePath = `chats/${threadId}/messages`;
-
     const cachedSubscriptions = loadCachedSubscriptions();
-    if(cachedSubscriptions.some(subscription => subscription.resource === resourcePath)) {
+    if (
+      cachedSubscriptions.some(
+        (subscription) =>
+          subscription.resource === resourcePath &&
+          new Date(subscription.expirationTime) > new Date()
+      )
+    ) {
       console.log("Already subscribed to chat");
       return;
     }
 
-    console.log("subscribing to chat notifications for thread " + threadId);
+    console.log("subscribing to changes for " + resourcePath);
 
     const expirationTime: Date = new Date(
       new Date().getTime() +
@@ -326,18 +337,28 @@ export class GraphNotificationClient {
     await Promise.all(awaits);
   };
 
-  private removeSubscription = (subscriptionId: string) => {
+  private recreateSubscription = (subscriptionId: string) => {
     console.log("Remove Subscription from session storage.");
     const subscriptionCache = loadCachedSubscriptions();
     if (subscriptionCache?.length > 0) {
-      let subscriptions = subscriptionCache.filter((subscription) => {
-        return subscription.subscriptionId !== subscriptionId;
-      });
+      const subscriptions = subscriptionCache.filter(
+        (subscription) => subscription.subscriptionId !== subscriptionId
+      );
 
       sessionStorage.setItem(
         "graph-subscriptions",
         JSON.stringify(subscriptions)
       );
+
+      const subscription = subscriptionCache.find(
+        (s) => s.subscriptionId === subscriptionId
+      );
+      if (subscription) {
+        this.subscribeToResource(
+          subscription.resource,
+          this.subscriptionEmitter[subscriptionId]
+        );
+      }
     }
   };
 

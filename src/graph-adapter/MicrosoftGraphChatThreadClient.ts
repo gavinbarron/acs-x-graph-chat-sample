@@ -50,6 +50,7 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     });
   }
 
+  // conversation name is the topic
   updateTopic(topic: string): Promise<void> {
     throw new Error('MicrosoftGraphChatThreadClient topic Not implemented');
   }
@@ -79,14 +80,17 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     return pagedAsyncIterator(messages);
   }
 
+  // add graph call to delete here
   deleteMessage(messageId: string): Promise<void> {
     throw new Error('MicrosoftGraphChatThreadClient deleteMessage Not implemented');
   }
 
+  // add graph call to edit a message here
   updateMessage(messageId: string, options?: UpdateMessageOptions): Promise<void> {
     throw new Error('MicrosoftGraphChatThreadClient updateMessage Not implemented');
   }
 
+  // add person to conversation thread. What is the behavior when moving from 1:1 to group chat? and view of history?
   addParticipants(request: AddParticipantsRequest): Promise<AddChatParticipantsResult> {
     throw new Error('MicrosoftGraphChatThreadClient addParticipants Not implemented');
   }
@@ -97,6 +101,7 @@ export class MicrosoftGraphChatThreadClient implements IChatThreadClient {
     }
     return pagedAsyncIterator(this.getThread().participants);
   }
+
 
   removeParticipant(participant: CommunicationIdentifier): Promise<void> {
     throw new Error('MicrosoftGraphChatThreadClient removeParticipant Not implemented');
