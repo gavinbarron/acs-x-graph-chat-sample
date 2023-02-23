@@ -61,7 +61,7 @@ export class GraphNotificationClient {
   private renewalInterval = -1;
   private renewalCount = 0;
 
-  private subscriptionEmitter: Record<string, ThreadEventEmitter> = {};
+  private subscriptionEmitter: Record<string, ThreadEventEmitter | undefined> = {};
   private tempThreadSubscriptionEmitterMap: Record<string, ThreadEventEmitter> =
     {};
 
@@ -144,9 +144,9 @@ export class GraphNotificationClient {
     );
     const message = graphChatMessageToACSChatMessage(decryptedContent);
 
-    const emitter: ThreadEventEmitter =
+    const emitter: ThreadEventEmitter | undefined =
       this.subscriptionEmitter[notification.subscriptionId];
-    emitter.chatMessageReceived({
+      emitter?.chatMessageReceived({
       message: message.content?.message!,
       metadata: {},
       id: message.id,
@@ -231,17 +231,6 @@ export class GraphNotificationClient {
     if (!this.connection) throw new Error("SignalR connection not initialized");
 
     const token = await this.getToken();
-    const cachedSubscriptions = loadCachedSubscriptions();
-    if (
-      cachedSubscriptions.some(
-        (subscription) =>
-          subscription.resource === resourcePath &&
-          new Date(subscription.expirationTime) > new Date()
-      )
-    ) {
-      console.log("Already subscribed to chat");
-      return;
-    }
 
     console.log("subscribing to changes for " + resourcePath);
 
@@ -353,10 +342,11 @@ export class GraphNotificationClient {
       const subscription = subscriptionCache.find(
         (s) => s.subscriptionId === subscriptionId
       );
-      if (subscription) {
+      const eventEmitter = this.subscriptionEmitter[subscriptionId];
+      if (subscription && eventEmitter) {
         this.subscribeToResource(
           subscription.resource,
-          this.subscriptionEmitter[subscriptionId]
+          eventEmitter
         );
       }
     }
